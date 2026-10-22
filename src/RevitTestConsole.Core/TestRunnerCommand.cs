@@ -25,7 +25,7 @@ public class TestRunnerCommand : IExternalCommand
 	// Populated once in InstallAssemblyResolver so that the AssemblyResolve handler never
 	// needs to call Assembly.LoadFrom (which causes recursive resolution → StackOverflow
 	// inside Revit's already-deep call stack).
-	// Fix 4（源自 revit二开 插件实战教训）: resolve 处理器只查缓存、零 LoadFrom 调用。
+	// Fix 4（源自本人的revit二开工具实战教训）: resolve 处理器只查缓存、零 LoadFrom 调用。
 	private static readonly Dictionary<string, Assembly> _preloadedAssemblies = new Dictionary<string, Assembly>(StringComparer.OrdinalIgnoreCase);
 
 	public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
@@ -91,7 +91,7 @@ public class TestRunnerCommand : IExternalCommand
 		LightweightTestRunner lightweightTestRunner = new LightweightTestRunner();
 		// 始终赋值：0 = 内联执行（测试体在调用线程/Revit API 上下文），>0 = 工作线程 + 超时守护。
 		lightweightTestRunner.PerTestTimeoutMs = perTestTimeoutMs;
-		// Fix（源自 revit二开 插件实战教训）: 不写死测试程序集清单，改为自动发现插件目录下
+		// Fix（源自本人的revit二开工具实战教训）: 不写死测试程序集清单，改为自动发现插件目录下
 		// 以 .Tests.dll 结尾的程序集——新测试项目只需把 DLL 复制到本目录即可被发现。
 		string pluginDir = Path.GetDirectoryName(typeof(TestRunnerCommand).Assembly.Location) ?? "";
 		string[] assemblyPaths = DiscoverTestAssemblies(pluginDir);

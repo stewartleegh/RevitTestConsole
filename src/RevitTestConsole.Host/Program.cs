@@ -256,7 +256,7 @@ internal class Program
 		Console.WriteLine("[SETUP] Auto-excluded category: SandboxSensitive");
 		ParseTimeoutArg(args, lightweightTestRunner);
 
-		// Fix（源自 revit二开 插件实战教训）: 不再写死测试程序集清单。两种发现方式：
+		// Fix（源自本人的revit二开工具实战教训）: 不再写死测试程序集清单。两种发现方式：
 		// (a) --assembly <路径或文件名>，可重复指定；
 		// (b) 未指定 --assembly 时，自动发现宿主 exe 目录下全部 *.Tests.dll
 		//     （排除 nunit*.dll 框架程序集与运行器自身）。
