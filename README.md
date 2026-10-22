@@ -2,7 +2,7 @@
 
 面向 Revit 二次开发（R2020–R2026+）的独立测试控制台基建。无需 Visual Studio Test Explorer、无需 Revit 进程即可在 CI 沙箱中运行纯单元测试，也可在装有 Revit 的机器上预载 RevitAPI 运行集成测试。
 
-本项目从 [本人的revit二开工具](https://github.com/) 的测试基建抽取解耦而来，已去除所有业务代码依赖（revit二开 插件、SQLite、RealDWG 分发），可直接复制到任意 Revit 二次开发项目中使用。
+本项目从本人其他revit二开的测试基建抽取解耦而来，已去除所有业务代码依赖，可直接复制到任意 Revit 二次开发项目中使用。
 
 ## 架构分层
 
@@ -167,9 +167,9 @@ $root = "D:\ai coder\Projects\RevitTestConsole"
 
 ## 来源与许可
 
-代码抽取自 本人的revit二开工具 项目（NUnit 3.13.3 + 自建 LightweightTestRunner + TestConsole 宿主 + RevitTestContext 三层基建），解耦变更包括：
+代码抽取自本人revit二开项目（NUnit 3.13.3 + 自建 LightweightTestRunner + TestConsole 宿主 + RevitTestContext 三层基建），解耦变更包括：
 
-- 命名空间统一为 `RevitTestConsole.*`，移除 revit二开 前缀与业务引用
+- 命名空间统一为 `RevitTestConsole.*`，移除 二开工具前缀与业务引用
 - 宿主测试程序集改为自动发现 / `--assembly` 指定，不再写死程序集清单
 - 新增 `RevitPathResolver` 公共路径探测（原内嵌于宿主）
 - 新增无 Revit 机器的 `--no-revit` 降级支持（原实现要求必须找到 Revit 安装）
