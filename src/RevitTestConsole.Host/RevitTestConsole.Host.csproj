@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- 共享名外壳 = R2022-R2024 壳（net48）。三壳 AssemblyName 相同、bin 目录不同。 -->
+    <OutputPath>$(MSBuildProjectDirectory)\bin\R2022-R2024\$(Configuration)\$(TargetFramework)\</OutputPath>
+    <AssemblyName>RevitTestConsole.Host</AssemblyName>
+    <RootNamespace>RevitTestConsole.Host</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>10.0</LangVersion>
+    <DefineConstants>$(DefineConstants);R2022_R2024</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NUnit" Version="3.13.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 引用示例测试项目使 SampleCommand.Tests.dll 随构建落入 Host bin，供 *.Tests.dll 自动发现。 -->
+    <ProjectReference Include="..\RevitTestConsole.Core\RevitTestConsole.Core.csproj" />
+    <ProjectReference Include="..\RevitTestConsole.TestKit\RevitTestConsole.TestKit.csproj" />
+    <ProjectReference Include="..\..\samples\SampleCommand.Tests\SampleCommand.Tests.csproj" />
+  </ItemGroup>
+</Project>

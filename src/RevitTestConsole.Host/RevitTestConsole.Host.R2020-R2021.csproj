@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- R2020-R2021 外壳（net48）。三壳 AssemblyName 相同、bin 目录不同。 -->
+    <OutputPath>$(MSBuildProjectDirectory)\bin\R2020-R2021\$(Configuration)\$(TargetFramework)\</OutputPath>
+    <AssemblyName>RevitTestConsole.Host</AssemblyName>
+    <RootNamespace>RevitTestConsole.Host</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>10.0</LangVersion>
+    <DefineConstants>$(DefineConstants);R2020_R2021</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NUnit" Version="3.13.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RevitTestConsole.Core\RevitTestConsole.Core.R2020-R2021.csproj" />
+    <ProjectReference Include="..\RevitTestConsole.TestKit\RevitTestConsole.TestKit.R2020-R2021.csproj" />
+    <ProjectReference Include="..\..\samples\SampleCommand.Tests\SampleCommand.Tests.R2020-R2021.csproj" />
+  </ItemGroup>
+</Project>

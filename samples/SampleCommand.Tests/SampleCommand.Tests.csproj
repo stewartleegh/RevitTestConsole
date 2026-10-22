@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- 共享名外壳 = R2022-R2024 壳（net48）。三壳 AssemblyName 相同、bin 目录不同。 -->
+    <!-- 测试程序集约定：AssemblyName 必须以 .Tests 结尾，宿主与 add-in 按 *.Tests.dll 自动发现。 -->
+    <OutputPath>$(MSBuildProjectDirectory)\bin\R2022-R2024\$(Configuration)\</OutputPath>
+    <AssemblyName>SampleCommand.Tests</AssemblyName>
+    <RootNamespace>SampleCommand.Tests</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <IsTestProject>true</IsTestProject>
+    <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>10.0</LangVersion>
+    <DefineConstants>$(DefineConstants);R2022_R2024</DefineConstants>
+    <!-- 测试输出目录不追加 TFM/RID 段，三个壳均输出到 bin\<壳>\<Configuration>\ 固定布局。 -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+  <PropertyGroup>
+    <!-- Revit API 路径解析：优先 RevitXXXXPath 环境变量（自定义安装位置覆盖），
+         未设置时回退 C/D 盘默认安装目录，保证新机器无环境变量也可开箱构建。 -->
+    <Revit2022Path Condition="'$(Revit2022Path)' == '' and Exists('C:\Program Files\Autodesk\Revit 2022\')">C:\Program Files\Autodesk\Revit 2022</Revit2022Path>
+    <Revit2022Path Condition="'$(Revit2022Path)' == '' and Exists('D:\Program Files\Autodesk\Revit 2022\')">D:\Program Files\Autodesk\Revit 2022</Revit2022Path>
+    <Revit2023Path Condition="'$(Revit2023Path)' == '' and Exists('C:\Program Files\Autodesk\Revit 2023\')">C:\Program Files\Autodesk\Revit 2023</Revit2023Path>
+    <Revit2023Path Condition="'$(Revit2023Path)' == '' and Exists('D:\Program Files\Autodesk\Revit 2023\')">D:\Program Files\Autodesk\Revit 2023</Revit2023Path>
+    <Revit2024Path Condition="'$(Revit2024Path)' == '' and Exists('C:\Program Files\Autodesk\Revit 2024\')">C:\Program Files\Autodesk\Revit 2024</Revit2024Path>
+    <Revit2024Path Condition="'$(Revit2024Path)' == '' and Exists('D:\Program Files\Autodesk\Revit 2024\')">D:\Program Files\Autodesk\Revit 2024</Revit2024Path>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NUnit" Version="3.13.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 直接使用 RevitAPI 类型的用例按壳引用对应版本的 RevitAPI（仅编译期使用，Private=False 不随输出分发）。 -->
+    <Reference Include="RevitAPI">
+      <HintPath Condition="Exists('$(Revit2022Path)\RevitAPI.dll')">$(Revit2022Path)\RevitAPI.dll</HintPath>
+      <HintPath Condition="Exists('$(Revit2023Path)\RevitAPI.dll')">$(Revit2023Path)\RevitAPI.dll</HintPath>
+      <HintPath Condition="Exists('$(Revit2024Path)\RevitAPI.dll')">$(Revit2024Path)\RevitAPI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath Condition="Exists('$(Revit2022Path)\RevitAPIUI.dll')">$(Revit2022Path)\RevitAPIUI.dll</HintPath>
+      <HintPath Condition="Exists('$(Revit2023Path)\RevitAPIUI.dll')">$(Revit2023Path)\RevitAPIUI.dll</HintPath>
+      <HintPath Condition="Exists('$(Revit2024Path)\RevitAPIUI.dll')">$(Revit2024Path)\RevitAPIUI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RevitTestConsole.TestKit\RevitTestConsole.TestKit.csproj" />
+  </ItemGroup>
+</Project>

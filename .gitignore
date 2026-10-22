@@ -1,0 +1,19 @@
+# Build outputs
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Test artifacts
+TestProfile_*/
+RevitTestConsole-TestResults.xml
+*.log
+
+# NuGet
+*.nupkg
+packages/

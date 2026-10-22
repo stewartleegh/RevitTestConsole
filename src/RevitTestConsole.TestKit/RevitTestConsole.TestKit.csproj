@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- 共享名外壳 = R2022-R2024 壳（net48）。三壳 AssemblyName 相同、bin 目录不同。 -->
+    <!-- TestKit 刻意不引用 RevitAPI：上下文以 object 传递，保证测试程序集只依赖本 Kit + NUnit。 -->
+    <OutputPath>$(MSBuildProjectDirectory)\bin\R2022-R2024\$(Configuration)\$(TargetFramework)\</OutputPath>
+    <AssemblyName>RevitTestConsole.TestKit</AssemblyName>
+    <RootNamespace>RevitTestConsole.TestKit</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>10.0</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NUnit" Version="3.13.3" />
+  </ItemGroup>
+</Project>

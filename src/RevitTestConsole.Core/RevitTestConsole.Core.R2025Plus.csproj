@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- R2025+ 外壳（.NET 8）。三壳 AssemblyName 相同、bin 目录不同。 -->
+    <OutputPath>$(MSBuildProjectDirectory)\bin\R2025Plus\$(Configuration)\$(TargetFramework)\</OutputPath>
+    <AssemblyName>RevitTestConsole.Core</AssemblyName>
+    <RootNamespace>RevitTestConsole.Core</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>12.0</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <NoWarn>CA1416</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup>
+    <!-- Revit API 路径解析：优先 RevitXXXXPath 环境变量（自定义安装位置覆盖），
+         未设置时回退 C/D 盘默认安装目录，保证新机器无环境变量也可开箱构建。 -->
+    <Revit2025Path Condition="'$(Revit2025Path)' == '' and Exists('C:\Program Files\Autodesk\Revit 2025\')">C:\Program Files\Autodesk\Revit 2025</Revit2025Path>
+    <Revit2025Path Condition="'$(Revit2025Path)' == '' and Exists('D:\Program Files\Autodesk\Revit 2025\')">D:\Program Files\Autodesk\Revit 2025</Revit2025Path>
+    <Revit2026Path Condition="'$(Revit2026Path)' == '' and Exists('C:\Program Files\Autodesk\Revit 2026\')">C:\Program Files\Autodesk\Revit 2026</Revit2026Path>
+    <Revit2026Path Condition="'$(Revit2026Path)' == '' and Exists('D:\Program Files\Autodesk\Revit 2026\')">D:\Program Files\Autodesk\Revit 2026</Revit2026Path>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NUnit" Version="3.13.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="RevitAPI">
+      <HintPath Condition="Exists('$(Revit2025Path)\RevitAPI.dll')">$(Revit2025Path)\RevitAPI.dll</HintPath>
+      <HintPath Condition="Exists('$(Revit2026Path)\RevitAPI.dll')">$(Revit2026Path)\RevitAPI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath Condition="Exists('$(Revit2025Path)\RevitAPIUI.dll')">$(Revit2025Path)\RevitAPIUI.dll</HintPath>
+      <HintPath Condition="Exists('$(Revit2026Path)\RevitAPIUI.dll')">$(Revit2026Path)\RevitAPIUI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RevitTestConsole.TestKit\RevitTestConsole.TestKit.R2025Plus.csproj" />
+  </ItemGroup>
+</Project>

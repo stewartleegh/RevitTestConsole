@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- R2025+ 外壳（.NET 8）。三壳 AssemblyName 相同、bin 目录不同。 -->
+    <OutputPath>$(MSBuildProjectDirectory)\bin\R2025Plus\$(Configuration)\$(TargetFramework)\</OutputPath>
+    <AssemblyName>RevitTestConsole.TestKit</AssemblyName>
+    <RootNamespace>RevitTestConsole.TestKit</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>12.0</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <NoWarn>CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NUnit" Version="3.13.3" />
+  </ItemGroup>
+</Project>

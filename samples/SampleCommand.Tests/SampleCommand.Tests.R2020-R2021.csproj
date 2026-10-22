@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- R2020-R2021 外壳（net48）。三壳 AssemblyName 相同、bin 目录不同。 -->
+    <!-- 测试程序集约定：AssemblyName 必须以 .Tests 结尾，宿主与 add-in 按 *.Tests.dll 自动发现。 -->
+    <OutputPath>$(MSBuildProjectDirectory)\bin\R2020-R2021\$(Configuration)\</OutputPath>
+    <AssemblyName>SampleCommand.Tests</AssemblyName>
+    <RootNamespace>SampleCommand.Tests</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <IsTestProject>true</IsTestProject>
+    <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>10.0</LangVersion>
+    <DefineConstants>$(DefineConstants);R2020_R2021</DefineConstants>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+  <PropertyGroup>
+    <!-- Revit API 路径解析：优先 RevitXXXXPath 环境变量（自定义安装位置覆盖），
+         未设置时回退 C/D 盘默认安装目录，保证新机器无环境变量也可开箱构建。 -->
+    <Revit2020Path Condition="'$(Revit2020Path)' == '' and Exists('C:\Program Files\Autodesk\Revit 2020\')">C:\Program Files\Autodesk\Revit 2020</Revit2020Path>
+    <Revit2020Path Condition="'$(Revit2020Path)' == '' and Exists('D:\Program Files\Autodesk\Revit 2020\')">D:\Program Files\Autodesk\Revit 2020</Revit2020Path>
+    <Revit2021Path Condition="'$(Revit2021Path)' == '' and Exists('C:\Program Files\Autodesk\Revit 2021\')">C:\Program Files\Autodesk\Revit 2021</Revit2021Path>
+    <Revit2021Path Condition="'$(Revit2021Path)' == '' and Exists('D:\Program Files\Autodesk\Revit 2021\')">D:\Program Files\Autodesk\Revit 2021</Revit2021Path>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NUnit" Version="3.13.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="RevitAPI">
+      <HintPath Condition="Exists('$(Revit2020Path)\RevitAPI.dll')">$(Revit2020Path)\RevitAPI.dll</HintPath>
+      <HintPath Condition="Exists('$(Revit2021Path)\RevitAPI.dll')">$(Revit2021Path)\RevitAPI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath Condition="Exists('$(Revit2020Path)\RevitAPIUI.dll')">$(Revit2020Path)\RevitAPIUI.dll</HintPath>
+      <HintPath Condition="Exists('$(Revit2021Path)\RevitAPIUI.dll')">$(Revit2021Path)\RevitAPIUI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RevitTestConsole.TestKit\RevitTestConsole.TestKit.R2020-R2021.csproj" />
+  </ItemGroup>
+</Project>
