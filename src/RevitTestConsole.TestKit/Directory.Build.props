@@ -1,0 +1,18 @@
+<Project>
+  <!-- 三壳共目录模型：一个目录三个 csproj，NuGet 资产文件（project.assets.json / project.nuget.cache）
+       以固定文件名写入中间目录，三壳共享 obj 会互相覆盖（last-restore-wins），构建多壳后再单独
+       增量重建某壳会 no-op 沿用残留资产，产出错误 TFM 的程序集（实证：net8 样本 DLL 落入 net48 目录）。
+       此处按 csproj 文件名推导壳名、每壳独立中间目录（obj\<壳名>\）根治。
+       注意：MSBuildProjectExtensionsPath 必须在 Microsoft.Common.props 导入前设置（MSB3540），
+       故只能写在本文件（Directory.Build.props）中，不能写进 csproj 主体。 -->
+  <PropertyGroup>
+    <_RtcShell Condition="$(MSBuildProjectName.EndsWith('.R2025Plus'))">R2025Plus</_RtcShell>
+    <_RtcShell Condition="'$(_RtcShell)' == '' and $(MSBuildProjectName.EndsWith('.R2020-R2021'))">R2020-R2021</_RtcShell>
+    <_RtcShell Condition="'$(_RtcShell)' == ''">R2022-R2024</_RtcShell>
+    <BaseIntermediateOutputPath>$(MSBuildProjectDirectory)\obj\$(_RtcShell)\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
+    <!-- 中间目录改为 obj\<壳名>\ 后，SDK 默认排除（只排除 BaseIntermediateOutputPath）盖不住兄弟壳目录，
+         会把其它壳生成的 *.AssemblyAttributes.cs 也 glob 进 Compile 报 CS0579；这里整树排除 obj\。 -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

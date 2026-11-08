@@ -5,8 +5,10 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Interfaces;
+using NUnit.Framework.Internal;
 
 namespace RevitTestConsole.Core;
 
@@ -15,6 +17,14 @@ public class LightweightTestRunner
 	private string[] _includeCategories;
 
 	private string[] _excludeCategories;
+
+	/// <summary>
+	/// NUnit 3.13.3 的 TestExecutionContext.MultipleAssertLevel 为 internal（有 backing field、
+	/// 可反射读写），断言层级复位用；属性缺失（NUnit 版本漂移）时容忍跳过。
+	/// </summary>
+	private static readonly PropertyInfo MultipleAssertLevelProperty =
+		typeof(TestExecutionContext).GetProperty("MultipleAssertLevel",
+			BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 
 	/// <summary>
 	/// 每个测试方法的超时时间（毫秒）。超时后标记为失败并继续后续测试。
@@ -271,14 +281,24 @@ public class LightweightTestRunner
 			TimeoutAttribute timeoutAttr = testMethod.GetCustomAttribute<TimeoutAttribute>();
 			if (timeoutAttr != null)
 			{
+				int attrTimeout = 0;
 				var timeoutProp = typeof(TimeoutAttribute).GetProperty("Timeout",
 					BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 				if (timeoutProp != null)
 				{
-					int attrTimeout = (int)timeoutProp.GetValue(timeoutAttr);
-					if (attrTimeout > 0)
-						timeoutMs = attrTimeout;
+					attrTimeout = (int)timeoutProp.GetValue(timeoutAttr);
 				}
+				else
+				{
+					// NUnit 3.x 的 TimeoutAttribute 无 Timeout 属性，超时值在 PropertyAttribute 基类的属性包中（键 "Timeout"）。
+					IPropertyBag bag = timeoutAttr.Properties;
+					if (bag != null && bag.ContainsKey("Timeout"))
+					{
+						attrTimeout = Convert.ToInt32(bag.Get("Timeout"));
+					}
+				}
+				if (attrTimeout > 0)
+					timeoutMs = attrTimeout;
 			}
 		}
 		catch { /* 忽略 TimeoutAttribute 读取失败 */ }
@@ -291,6 +311,22 @@ public class LightweightTestRunner
 
 		void InvokeTestBody()
 		{
+			// 断言记账逐测试隔离。本运行器经反射调用绕过 NUnit 正式生命周期，无 framework 层
+			// 重置兜底：NUnit 3.13.3 的 TestExecutionContext 经 AsyncLocal 随 ExecutionContext
+			// 流动，一旦某 fixture 的 OneTimeSetUp/TearDown 在主线程触碰 NUnit 上下文
+			// （TestContext/Assert 均会触发），context 实例即被其后的所有测试线程共享——
+			// 整份运行共用一个 CurrentResult.AssertionResults 账本。先行测试被吞掉
+			// （try-catch/观察者异常隔离）或被超时遗留的失败断言、以及未被等待的
+			// async continuation 迟到写入的断言，都会残留账本毒化后续无关测试的
+			// Assert.Multiple（scope 退出时以异源文本抛出假失败），或令 MultipleAssertLevel
+			// 卡在 >0 造成假通过。每个测试开始前清账本并复位层级，保证逐测试隔离
+			//（正式 NUnit 宿主不受影响——正式生命周期每测试独立 result，无共享实例）。
+			var nunitContext = TestExecutionContext.CurrentContext;
+			nunitContext.CurrentResult?.AssertionResults?.Clear();
+			// 层级复位走反射（NUnit 3.13.3 该属性为 internal）：超时被放弃的线程若死在
+			// Assert.Multiple 块内，共享 context 的层级会卡在 >0，令后续测试的失败断言
+			// 被推迟抛出（假通过），必须复位归零。
+			MultipleAssertLevelProperty?.SetValue(nunitContext, 0);
 			try
 			{
 				Console.WriteLine($"[TestRunner]     SetUp: {string.Join(", ", setUpMethods.Select(m => m.Name))}");
@@ -306,7 +342,17 @@ public class LightweightTestRunner
 			try
 			{
 				Console.WriteLine($"[TestRunner]     invoking: {testMethod.Name}");
-				testMethod.Invoke(instance, null);
+				// 等待 async Task 测试完成：此前 Invoke 丢弃返回的 Task——方法体在首个
+				// await 处即"返回"，测试被误判 Passed（假通过）；continuation 在线程池
+				// 迟到执行，其中的断言失败成为未观察异常，且会向共享断言账本迟到写入
+				// 残留（毒化后续测试）。同步阻塞等待在此安全：测试线程为裸线程、无
+				// SynchronizationContext，continuation 在线程池完成即解锁，不存在
+				// sync-over-async 死锁条件。
+				object invocation = testMethod.Invoke(instance, null);
+				if (invocation is Task awaitableTask)
+				{
+					awaitableTask.GetAwaiter().GetResult();
+				}
 			}
 			catch (Exception ex)
 			{
@@ -438,7 +484,13 @@ public class LightweightTestRunner
 	{
 		foreach (MethodInfo method in methods)
 		{
-			method.Invoke(instance, null);
+			// SetUp/OneTimeSetUp 若为 async Task 同样等待完成（同主测试体理由；
+			// OneTimeSetUp 在主线程等待，主线程同样无 SynchronizationContext，安全）。
+			object invocation = method.Invoke(instance, null);
+			if (invocation is Task awaitableTask)
+			{
+				awaitableTask.GetAwaiter().GetResult();
+			}
 		}
 	}
 
@@ -448,7 +500,13 @@ public class LightweightTestRunner
 		{
 			try
 			{
-				method.Invoke(instance, null);
+				// TearDown/OneTimeTearDown 若为 async Task 同样等待完成——仅补等待，
+				// 维持本方法"清理失败静默吞掉"的既有口径：Task 故障异常由 catch 吞掉。
+				object invocation = method.Invoke(instance, null);
+				if (invocation is Task awaitableTask)
+				{
+					awaitableTask.GetAwaiter().GetResult();
+				}
 			}
 			catch
 			{

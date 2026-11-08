@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace SampleCommand.Tests
@@ -5,7 +6,8 @@ namespace SampleCommand.Tests
 	/// <summary>
 	/// 普通单元测试示例：纯托管逻辑，不触碰 RevitAPI，
 	/// 在 --no-revit 模式、Revit 进程内运行器下均可执行。
-	/// 注意：内置 LightweightTestRunner 仅识别 [TestFixture]/[Test]，
+	/// 运行器契约（见 README「内置运行器的契约与限制」）：
+	/// async Task 测试体会被等待至完成；Assert.Multiple 受逐测试断言账本隔离保护；
 	/// 不支持 [TestCase] 参数化用例，请编写普通 [Test] 方法并通过局部变量组织数据。
 	/// </summary>
 	[TestFixture]
@@ -36,10 +38,26 @@ namespace SampleCommand.Tests
 			Assert.That(header, Does.Contain("SampleCommand"));
 		}
 
+		// async Task 测试示例：运行器对返回的 Task 执行 GetAwaiter().GetResult() 真等待——
+		// await 之后的断言参与判定，挂死受单测试超时熔断保护。
+		[Test]
+		public async Task SumAsync_WhenAwaited_ReturnsExpectedResult()
+		{
+			int result = await AddAsync(2, 3);
+
+			Assert.That(result, Is.EqualTo(5));
+		}
+
 		// ---- 以下为被测的纯托管辅助逻辑（示例项目自带，用于演示普通单元测试的写法） ----
 
 		private static int Add(int left, int right)
 		{
+			return left + right;
+		}
+
+		private static async Task<int> AddAsync(int left, int right)
+		{
+			await Task.Delay(1);
 			return left + right;
 		}
 

@@ -56,6 +56,8 @@ RevitTestConsole/
 
 源码中通过 `#if R2025PLUS` / `#if !R2025PLUS` 等条件编译适配 API 差异与运行时差异（.NET Framework vs .NET 8 的 native DLL 搜索行为不同，详见 Host `Program.cs` 内注释）。
 
+三壳共享源码但中间目录必须隔离：每个项目目录下的 `Directory.Build.props` 按 csproj 文件名推导壳名，把 `obj\` 重定向到 `obj\<壳名>\`（同时设置 `MSBuildProjectExtensionsPath`）。若三壳共用 `obj\`，`project.assets.json` / `project.nuget.cache` 会被后 restore 的壳覆盖（last-restore-wins），构建多壳后再单独增量重建某壳可能 no-op 沿用错误 TFM 的残留资产，产出错壳程序集（实证：net8 样本 DLL 落入 net48 目录）。因此**不再需要也不能**靠"切壳前 rm -rf obj"规避；接入新目录时随目录复制该 `Directory.Build.props`。
+
 `RevitAPI` / `RevitAPIUI` 仅编译期引用（`Private=False`，不随输出分发），通过环境变量定位：
 
 ```
@@ -119,6 +121,31 @@ $root = "D:\ai coder\Projects\RevitTestConsole"
 
 宿主每次运行都会自动：排除 `SandboxSensitive` 类别（防沙箱杀进程）；`--no-revit` 下自动排除 `RequiresRevitContext`；将用户配置目录（APPDATA 等）重定向到 exe 旁的 `TestProfile_<壳名>` 目录，保证写文件测试不污染真实用户目录。
 
+## Revit 进程内无头运行（CI）
+
+宿主 exe 覆盖 `--no-revit` 纯单元测试场景；要在**真实 Revit 进程**（UI 线程/API 上下文）中无人值守地跑集成测试，使用 Core 的 autorun 模式 + 驱动脚本 `scripts/run-revit-autorun.ps1`：
+
+**前提**：将 `RevitTestConsole.Core` 的 `TestRunnerCommand` 注册进目标 Revit 的 add-in 清单（同「接入新的 Revit 二次开发项目」第 4 步）。
+
+**机理**：脚本设置 `REVITTESTCONSOLE_TESTRUNNER_AUTORUN=1` 及类别/输出/超时环境变量后启动 Revit；`TestRunnerApplication` 在首个 Idling 事件触发 `RunHeadless`（零弹窗）；完成后写出 `<output>.done` 哨兵（异常时写 `<output>.error`），脚本探测到哨兵后解析结果 XML 并终止 Revit 进程。
+
+```powershell
+.\scripts\run-revit-autorun.ps1 -RevitVersion 2024 -Include "RevitIntegration" -Output "D:\work\rtc-ci.xml"
+# 或显式指定 Revit 可执行文件：-RevitExe "C:\Program Files\Autodesk\Revit 2026\Revit.exe"
+```
+
+| 脚本参数 | 说明 |
+|---|---|
+| `-RevitVersion` / `-RevitExe` | 版本号走 C/D 盘默认安装目录探测；或直接给完整路径 |
+| `-Include` / `-Exclude` | 转发至 `REVITTESTCONSOLE_TESTRUNNER_INCLUDE/EXCLUDE` |
+| `-Output` | 结果 XML 路径（默认 `scripts\..\out\` 下带时间戳文件名） |
+| `-Evidence` | 可选：结果 XML 与 autorun 日志归档目录 |
+| `-StartupDocument` | 可选：启动时打开的模型 |
+| `-PerTestTimeoutMs` | 转发至 `REVITTESTCONSOLE_TESTRUNNER_TIMEOUT`（默认 0 = 内联执行，真实 Revit 内测试体须在 API 上下文线程运行） |
+| `-OverallTimeoutMinutes` | 整体超时兜底（默认 30），超时强制终止 Revit，退码 3 |
+
+**退出码**：`0`=全过 / `1`=有测试失败 / `2`=基础设施错误（Revit 缺失或启动即崩、`.error` 哨兵、结果 XML 不可读）/ `3`=整体超时。
+
 ## 测试类别纪律
 
 | Category | 语义 | 运行环境 |
@@ -130,7 +157,14 @@ $root = "D:\ai coder\Projects\RevitTestConsole"
 
 **命名约定**：测试程序集 `AssemblyName` 必须以 `.Tests` 结尾，这是宿主自动发现的依据。
 
-**内置运行器的限制**：`LightweightTestRunner` 仅识别 `[TestFixture]` / `[Test]`，不支持 `[TestCase]` 参数化用例——请写普通 `[Test]` 方法并在方法内用局部变量组织数据（见 `SampleCommandTests.cs`）。
+**内置运行器的契约与限制**：
+
+- 仅识别 `[TestFixture]` / `[Test]`，不支持 `[TestCase]` 参数化用例——请写普通 `[Test]` 方法并在方法内用局部变量组织数据（见 `SampleCommandTests.cs`）。
+- `async Task` 测试体受支持：运行器对返回的 Task 真等待至完成（`GetAwaiter().GetResult()`，主测试体与 SetUp/TearDown 全系落点一致）。await 之后的断言正常参与判定；async 挂死受单测试超时熔断保护。测试线程为裸线程无 `SynchronizationContext`，同步等待无死锁条件。
+- `Assert.Multiple` 受支持：运行器在每个测试起始清空共享断言账本并复位 `MultipleAssertLevel`（NUnit 3.13.3 的 `TestExecutionContext` 经 `AsyncLocal` 跨测试线程共享账本，本运行器绕过 NUnit 正式生命周期、无 framework 层重置兜底，必须自行隔离）——先行测试被吞掉/超时遗留/迟到 continuation 的断言残留不会毒化后续无关测试。
+- 支持 NUnit `[Timeout]` 属性覆盖单测试超时（含超时值存于属性包的无公共属性形态，自动回退读取）。
+
+上述契约由 `samples/SampleCommand.Tests/TestRunnerIsolationPins.cs` 的 4 个复现钉（Category=`RunnerPins`）守护：跨测试断言残留假失败（Pin1a→Pin1b）与 async 假通过（Pin2a→Pin2b）两种缺陷形态，钉在缺陷存在时恰 2 红、修复后 4/4 绿。运行 `RevitTestConsole.Host.exe --no-revit --include RunnerPins` 可单独验证。
 
 ## 示例项目
 
@@ -139,6 +173,7 @@ $root = "D:\ai coder\Projects\RevitTestConsole"
 - `SampleCommandTests.cs` — 纯单元测试
 - `RevitApiSmokeTests.cs` — `RequiresRevitContext` 冒烟测试（只构造托管类型，不开文档）
 - `RevitIntegrationTests.cs` — 继承 `RevitIntegrationTestBase` 的进程内集成测试
+- `TestRunnerIsolationPins.cs` — 运行器契约复现钉（Category=`RunnerPins`，跨测试断言隔离与 async 真等待的回归守护，见「内置运行器的契约与限制」）
 
 示例项目被三个 Host 壳以 `ProjectReference` 引用，构建后 `SampleCommand.Tests.dll` 自动落入 Host bin 目录参与自动发现。接入你自己的项目时，替换/移除该 `ProjectReference`，或改用 `--assembly` 显式指定即可。
 
